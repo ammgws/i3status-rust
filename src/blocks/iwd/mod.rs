@@ -92,7 +92,7 @@ impl ConfigBlock for IWD {
         let device_id_copy = block_config.device_id.clone();
         let disconnected_str = block_config.disconnected_str.clone();
         let btn = if block_config.show_disconnect_btn {
-            Some(ButtonWidget::new(config.clone(), "disconnect").with_icon("power_off"))
+            Some(ButtonWidget::new(config.clone(), "disconnect").with_icon("net_down"))
         } else {
             None
         };
@@ -134,10 +134,9 @@ impl ConfigBlock for IWD {
             id: id_copy,
             device_id: device_id_copy,
             cur_state: cur_state_copy,
-            network: TextWidget::new(config.clone()).with_icon("wifi").with_state(State::Critical).with_text(STATE_DISCONNECTED),
+            network: TextWidget::new(config.clone()).with_icon("net_wireless").with_state(State::Critical).with_text(STATE_DISCONNECTED),
             disconnect: btn,
             disconnected_str: disconnected_str,
-            //disconnect: ButtonWidget::new(config.clone(), "disconnect").with_icon("toggle_off"),
             dbus_conn: Connection::get_private(BusType::System).block_error("iwd", "failed to establish D-Bus connection")?,
         })
     }
