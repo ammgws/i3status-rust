@@ -11,6 +11,7 @@
 - [Focused Window](#focused-window)
 - [Github](#github)
 - [IBus](#ibus)
+- [IWD](#iwd)
 - [Keyboard Layout](#keyboard-layout)
 - [Load](#load)
 - [Maildir](#maildir)
@@ -402,6 +403,34 @@ block = "ibus"
 [block.mappings]
 "mozc-jp" = "JP"
 "xkb:us::eng" = "EN"
+```
+
+## IWD
+
+Creates a block which shows WiFi network SSID and optionally a disconnect button. Requires [IWD](https://wiki.archlinux.org/index.php/Iwd). Uses asynchronous dbus api, hence no update intervals etc.
+
+### Examples
+
+```toml
+[[block]]
+block = "iwd"
+device_id = "/0/3"
+show_disconnect_btn = false
+disconnected_str = ""
+```
+
+### Options
+
+Key | Values | Required | Default
+----|--------|----------|--------
+`device_id` | WiFi adapter to connect to | Yes | `"/0/3"`
+`show_disconnect_btn` | Shows a disconnect button | No | `true`
+`disconnected_str` | String to show instead of SSID when there's no connected network | No | `""`
+
+You can obtain correct `device_id` by exploring IWD dbus api. Verify that IWD daemon is up and running and use the following commands or something similar: 
+```bash
+$ qdbus --system net.connman.iwd
+$ busctl tree net.connman.iwd
 ```
 
 ## Keyboard Layout
