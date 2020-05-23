@@ -1,20 +1,25 @@
-use chan::Sender;
 use std::default::Default;
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
-use block::{Block, ConfigBlock};
-use config::Config;
-use errors::*;
-use input::I3BarEvent;
-use scheduler::Task;
-use widget::{I3BarWidget, State};
-use widgets::button::ButtonWidget;
-use widgets::text::TextWidget;
+use crate::blocks::{Block, ConfigBlock, Update};
+use crate::config::Config;
+use crate::errors::*;
+use crate::input::I3BarEvent;
+use crate::scheduler::Task;
+use crate::widget::{I3BarWidget, State};
+use crate::widgets::button::ButtonWidget;
+use crate::widgets::text::TextWidget;
 
-use self::stdintf::org_freedesktop_dbus::PropertiesPropertiesChanged as PropsChanged;
-use blocks::dbus::{arg::RefArg, stdintf, BusType, Connection, ConnectionItem, Path, SignalArgs};
+use crossbeam_channel::Sender;
+use dbus::ffidisp::stdintf::org_freedesktop_dbus::PropertiesPropertiesChanged as PropsChanged;
+use dbus::{
+    ffidisp::{BusType, Connection, ConnectionItem},
+    message::SignalArgs,
+    strings::Path,
+};
+use serde_derive::Deserialize;
 use uuid::Uuid;
 
 mod net_connman_iwd_device;
@@ -85,7 +90,7 @@ impl ConfigBlock for IWD {
     type Config = IWDConfig;
 
     fn new(block_config: Self::Config, config: Config, send: Sender<Task>) -> Result<Self> {
-        let id: String = Uuid::new_v4().simple().to_string();
+        let id: String = Uuid::new_v4().to_simple().to_string();
         let id_copy = id.clone();
         let cur_state: Arc<Mutex<IWDPrivate>> = Arc::new(Mutex::new(Default::default()));
         let cur_state_copy = cur_state.clone();
@@ -155,7 +160,7 @@ impl Block for IWD {
         &self.id
     }
 
-    fn update(&mut self) -> Result<Option<Duration>> {
+    fn update(&mut self) -> Result<Option<Update>> {
         let disconnected_str = self.disconnected_str.clone();
         let cur_state = &mut *self.cur_state.lock().unwrap();
         self.network
@@ -185,7 +190,7 @@ impl Block for IWD {
         Ok(())
     }
 
-    fn view(&self) -> Vec<&I3BarWidget> {
+    fn view(&self) -> Vec<&dyn I3BarWidget> {
         if let Some(ref btn) = self.disconnect {
             vec![&self.network, btn]
         } else {
