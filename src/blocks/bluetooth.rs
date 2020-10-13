@@ -232,6 +232,10 @@ impl Block for Bluetooth {
                 .set_text(format!("{} {}%", self.device.label, battery_level));
         }
 
+        //TODO
+        // figure out best way to implement format string while taking into account
+        // the current behaviour of the block (hiding battery when it's not available)
+
         Ok(None)
     }
 
