@@ -6,12 +6,12 @@ use crossbeam_channel::Sender;
 use dbus::ffidisp::stdintf::org_freedesktop_dbus::{ObjectManager, Properties};
 use uuid::Uuid;
 
-use crate::blocks::Update;
-use crate::blocks::{Block, ConfigBlock};
+use crate::blocks::{Block, ConfigBlock, Update};
 use crate::config::Config;
 use crate::errors::*;
 use crate::input::{I3BarEvent, MouseButton};
 use crate::scheduler::Task;
+use crate::util::FormatTemplate;
 use crate::widget::{I3BarWidget, State};
 use crate::widgets::button::ButtonWidget;
 
@@ -159,6 +159,7 @@ pub struct Bluetooth {
     output: ButtonWidget,
     device: BluetoothDevice,
     hide_disconnected: bool,
+    format: FormatTemplate,
 }
 
 #[derive(Deserialize, Debug, Default, Clone)]
@@ -168,11 +169,17 @@ pub struct BluetoothConfig {
     pub label: Option<String>,
     #[serde(default = "BluetoothConfig::default_hide_disconnected")]
     pub hide_disconnected: bool,
+    #[serde(default = "BluetoothConfig::default_format")]
+    pub format: String,
 }
 
 impl BluetoothConfig {
     fn default_hide_disconnected() -> bool {
         false
+    }
+
+    fn default_format() -> String {
+        "{label}".to_owned()
     }
 }
 
@@ -195,6 +202,8 @@ impl ConfigBlock for Bluetooth {
             }),
             device,
             hide_disconnected: block_config.hide_disconnected,
+            format: FormatTemplate::from_string(&block_config.format)
+                .block_error("bluetooth", "Invalid format specified")?,
         })
     }
 }
@@ -211,8 +220,8 @@ impl Block for Bluetooth {
             .set_state(if connected { State::Good } else { State::Idle });
 
         // Use battery info, when available.
-        if let Some(value) = self.device.battery() {
-            self.output.set_state(match value {
+        if let Some(battery_level) = self.device.battery() {
+            self.output.set_state(match battery_level {
                 0..=15 => State::Critical,
                 16..=30 => State::Warning,
                 31..=60 => State::Info,
@@ -220,7 +229,7 @@ impl Block for Bluetooth {
                 _ => State::Warning,
             });
             self.output
-                .set_text(format!("{} {}%", self.device.label, value));
+                .set_text(format!("{} {}%", self.device.label, battery_level));
         }
 
         Ok(None)
