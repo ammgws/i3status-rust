@@ -55,6 +55,19 @@ pub trait BatteryDevice {
     fn power_consumption(&self) -> Result<u64>;
 }
 
+// https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-class-power
+// "Unknown", "Charging", "Discharging", "Not charging", "Full"
+// https://upower.freedesktop.org/docs/Device.html#Device:State
+// Unknown, Charging, Discharging, Empty, Fully charged, Pending charge, Pending discharge
+
+#[derive(Debug, Clone, PartialEq)]
+enum ChargeStatus {
+    Playing,
+    Paused,
+    Stopped,
+    Unknown,
+}
+
 /// Represents a physical power supply device, as known to sysfs.
 pub struct PowerSupplyDevice {
     device_path: PathBuf,
