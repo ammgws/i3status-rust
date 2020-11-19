@@ -15,7 +15,7 @@ use crate::input::I3BarEvent;
 use crate::scheduler::Task;
 use crate::signals::convert_to_valid_signal;
 use crate::subprocess::spawn_child_async;
-use crate::util::pseudo_uuid;
+use crate::util::{escape_pango_text, pseudo_uuid};
 use crate::widget::{I3BarWidget, State};
 use crate::widgets::button::ButtonWidget;
 
@@ -28,10 +28,11 @@ pub struct Custom {
     cycle: Option<Peekable<Cycle<vec::IntoIter<String>>>>,
     signal: Option<i32>,
     tx_update_request: Sender<Task>,
-    pub json: bool,
+    json: bool,
     hide_when_empty: bool,
     is_empty: bool,
     shell: String,
+    pango_escape: bool,
 }
 
 #[derive(Deserialize, Debug, Default, Clone)]
@@ -60,10 +61,14 @@ pub struct CustomConfig {
     #[serde(default = "CustomConfig::default_json")]
     pub json: bool,
 
-    #[serde(default = "CustomConfig::hide_when_empty")]
+    #[serde(default = "CustomConfig::default_hide_when_empty")]
     pub hide_when_empty: bool,
 
     pub shell: Option<String>,
+
+    /// Whether to pango escape the output text or not
+    #[serde(default = "CustomConfig::default_pango_escape")]
+    pub pango_escape: bool,
 }
 
 impl CustomConfig {
@@ -75,7 +80,11 @@ impl CustomConfig {
         false
     }
 
-    fn hide_when_empty() -> bool {
+    fn default_hide_when_empty() -> bool {
+        false
+    }
+
+    fn default_pango_escape() -> bool {
         false
     }
 }
@@ -101,6 +110,7 @@ impl ConfigBlock for Custom {
             } else {
                 env::var("SHELL").unwrap_or_else(|_| "sh".to_owned())
             },
+            pango_escape: block_config.pango_escape,
         };
         custom.output = ButtonWidget::new(config, &custom.id);
 
@@ -178,10 +188,18 @@ impl Block for Custom {
             self.output.set_icon(&output.icon);
             self.output.set_state(output.state);
             self.is_empty = output.text.is_empty();
-            self.output.set_text(output.text);
+            self.output.set_text(if self.pango_escape {
+                escape_pango_text(output.text)
+            } else {
+                output.text
+            });
         } else {
             self.is_empty = raw_output.is_empty();
-            self.output.set_text(raw_output);
+            self.output.set_text(if self.pango_escape {
+                escape_pango_text(raw_output)
+            } else {
+                raw_output
+            });
         }
 
         Ok(Some(self.update_interval.clone()))
