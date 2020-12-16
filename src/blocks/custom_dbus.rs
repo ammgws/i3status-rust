@@ -12,6 +12,7 @@ use serde_derive::Deserialize;
 
 use crate::blocks::{Block, ConfigBlock, Update};
 use crate::config::Config;
+use crate::de::deserialize_opt_duration;
 use crate::errors::*;
 use crate::input::I3BarEvent;
 use crate::scheduler::Task;
@@ -30,6 +31,8 @@ pub struct CustomDBus {
     id: String,
     text: TextWidget,
     status: Arc<Mutex<CustomDBusStatus>>,
+    timeout: Option<Duration>,
+    clear_pending: bool,
 }
 
 #[derive(Deserialize, Debug, Default, Clone)]
@@ -39,6 +42,10 @@ pub struct CustomDBusConfig {
 
     #[serde(default = "CustomDBusConfig::default_color_overrides")]
     pub color_overrides: Option<BTreeMap<String, String>>,
+
+    /// Timeout for clearing the block output after an update (in seconds)
+    #[serde(default, deserialize_with = "deserialize_opt_duration")]
+    pub timeout: Option<Duration>,
 }
 
 impl CustomDBusConfig {
@@ -133,6 +140,8 @@ impl ConfigBlock for CustomDBus {
             id: id_copy,
             text: TextWidget::new(config).with_text("CustomDBus"),
             status,
+            timeout: block_config.timeout,
+            clear_pending: false,
         })
     }
 }
@@ -144,15 +153,22 @@ impl Block for CustomDBus {
 
     // Updates the internal state of the block.
     fn update(&mut self) -> Result<Option<Update>> {
-        let status = (*self
-            .status
-            .lock()
-            .block_error("custom_dbus", "failed to acquire lock")?)
-        .clone();
-        self.text.set_text(status.content);
-        self.text.set_icon(&status.icon);
-        self.text.set_state(status.state);
-        Ok(None)
+        if self.timeout.is_some() && self.clear_pending {
+            self.clear_pending = false;
+            self.text.set_text(String::from(""));
+            Ok(None)
+        } else {
+            let status = (*self
+                .status
+                .lock()
+                .block_error("custom_dbus", "failed to acquire lock")?)
+            .clone();
+            self.text.set_text(status.content);
+            self.text.set_icon(&status.icon);
+            self.text.set_state(status.state);
+            self.clear_pending = true;
+            Ok(self.timeout.map(|d| d.into()))
+        }
     }
 
     // Returns the view of the block, comprised of widgets.
